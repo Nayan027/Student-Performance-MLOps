@@ -55,6 +55,7 @@ teeno ko detect karke setup.py ko de deta hai, taake teeno install ho jaayein.
 NOTE: its only possible coz teeno mein __init__.py hota hai.
 
 ---------------------------------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------------------------------
 
 
 Q. Logging?
@@ -111,5 +112,69 @@ Ye dono i.e. customexception & sys milke robust error handling aur graceful term
 jo especially MLOps pipelines mein important hota hai.
 
 
+---------------------------------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------------------------
 
-Q. 
+Q. 2 type of methods to initialize attributes when creating a Class?
+
+ans: Jab apni class banate hain Python mein, do common tareeke hote hain properties (attributes) initialize karne ke:
+
+(a). __init__ method define karna;
+Yeh ek special method hota hai jo class ka object banate waqt call hota hai.
+Iske andar hum manually variables initialize karte hain, for example;
+
+class Person:                                             
+    def __init__(self, name, age):
+        self.name = name
+        self.age = age
+
+Agar attributes ke sath koi logic, transformation, calculation, ya function lagana hai jab object banta hai 
+(jaise input modify karna, validation, extra processing), toh phir __init__ method define karna better hai.
+
+class Person:
+    def __init__(self, name, dob):              # Inputs - name, dob i.e. __init__ ke params  
+        self.name = name                        # Attributes - self.name, self.age
+        self.age = calculate_age(dob)           # Logic input par lag raha hai aur uska result self.age naam 
+                                                ke attribute mein store ho raha hai 
+
+
+(b). @dataclass decorator use karna;
+@dataclass automatically:
+__init__ method banata hai,
+__repr__ (print karne ke liye),
+__eq__ (comparison ke liye), and aur aur bhi kuch magic methods define karta hai. Code example;
+
+from dataclasses import dataclass
+
+@dataclass
+class Person:
+    name: str
+    age: int
+
+Agar sirf attributes ko data holder (values store karni hain, koi logic nahin lagani)—toh @dataclass decorator use karo. 
+Isme automatic __init__, __repr__, etc. ban jaata hai, aur tu sirf fields (attributes) define karta hai.
+
+
+
+__init__ se explicitly control milta hai ki jab object bane, kaunse variables hon, unka initialization kaise ho.
+@dataclass se boilerplate code kam ho jaata hai, simple aur readable class ban jaati hai bina manually __init__ likhne ke.
+
+NOTE: @dataclass ke andar bhi agar tumhe kuch custom initialization karna ho toh __post_init__ method 
+define kar sakte ho, jo __init__ ke baad automatically call hota hai.
+
+
+                                    Kab kya use karna chahiye — simple guide:
+------------------------------------------------------------------------------------------------------------------------
+Situation / Use Case                          Use Kya Karna Hai?                                  Kyu?
+------------------------------------------------------------------------------------------------------------------------
+Sirf simple classes jisme bas data                @dataclass                     Boht kam code likhna padta hai, __init__, 
+store karna hai (eg. naam, age,etc)                                                 __repr__ automatic ban jaata hai
+
+
+Boht complex initialization ya control 
+chahiye (jaise attributes ko differently        Apna custom __init__ likho         Full control milta hai, dataclass 
+process karna, multiple inputs handle karna)                                       se zyada flexible hai
+
+
+-------------------------------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------------------------------
