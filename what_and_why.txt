@@ -1,0 +1,115 @@
+code :
+from setuptools import setup, find_packages
+
+setup(
+    name="myproject",
+    version="0.1",
+    packages=find_packages(),  # Automatically include all packages here
+    install_requires=[
+        "numpy",
+        "pandas",
+    ]
+)
+
+
+Q. Why use setup.py when requirements.txt se kaam ho skta hai in another system?
+
+ans: Yeh poora project ek Python package bana deta hai, toh project ko install karne par:
+Directories, modules, scripts sab sahi tareeke se site-packages mein jaate hain.
+Meta info store hoti hai (author, version, etc)
+Optional: dependencies bhi yahan declare ho sakti hain using (install_requires), 
+toh requirements.txt ki zarurat nahi bhi pad sakti.
+Automation/CI/CD, dockerization, ya deployment mein setup.py required hota hai 
+taaki Python-style installable/reusable package bana paye aur 
+sab kuch sahi tareeke se install ho.
+
+
+
+Q. Connection between "-e ." in requirements.txt and setup.py file? 
+
+ans: "-e ." tabhi kaam karta hai jab project mein setup.py (ya pyproject.toml) ho, 
+kyunki woh batata hai project ko package kaise karna hai.
+Agar setup.py nahi hai, to -e . wala command kaam nahi karega.
+"-e ." wo shortcut hai jo setup.py ko use karke project code installable 
+& editable banaata hai.
+Jab "-e ." use karte hain, pip setup.py/pyproject.toml se instructions leke project ko 
+install kar leta hai.
+Faida: Apne hi code ko as a "local library" import kar sakte ho, 
+bina install/reinstall ki tension ke.
+NOTE : "- e." ---> "Editable install" i.e. poore project directory ko install kar lo
+"editable" mode mein.
+
+
+
+Q. What does find_packages() do in setup.py?
+
+ans: find_packages() Python setuptools ka ek funcn. hota hai jo setup.py mein use kiya jaata hai, aur iska kaam hota hai:
+project directory mein jitne bhi Python packages (folders jinmein __init__.py hota hai) hain, 
+un sab ko automatically dhoondhna aur unko setup() function ko dena taake wo sari sub-packages install ho jaayein.
+find_packages() automatically:
+src             - package
+components      - subpackage
+pipeline        - subpackage 
+
+teeno ko detect karke setup.py ko de deta hai, taake teeno install ho jaayein.
+NOTE: its only possible coz teeno mein __init__.py hota hai.
+
+---------------------------------------------------------------------------------------------------------------------------
+
+
+Q. Logging?
+
+ans: Logging ka matlab hai apne code ka kaam, errors, results ya progress ko systematically file/console pe record karna.
+Isse tu track kar sakta hai ki code kab, kya kar raha hai, kaun se values aa rahi hain, kahin koi problem hui toh 
+kaunse step pe hui. ML/MLOps mein logging important hai—code production mein jaata hai, automate hota hai, 
+toh errors ka pata logs se hi chalta hai.
+Log levels hote hain: DEBUG, INFO, WARNING, ERROR, CRITICAL—importance ke hisaab se.
+
+
+
+Q. Exception?
+
+ans: Exception ka matlab hai koi error ya unexpected situation (jaise file missing, data galat, divide by zero) 
+jo code chalte waqt aayi. Exceptions handle karna zaroori hai, warna code crash ho jaata hai.
+ML/MLOps mein: data loading, model training, file I/O, deployment—kahin bhi exceptions aa sakte hain, 
+inko properly handle karna hota hai taake code survive kare na ke crash ho aur pipeline ruk na jaaye.
+Python mein Exceptions k liye try-except block use karte hain.
+
+
+
+Q. CustomException?
+
+ans: Custom exception seedhe matlab: tu apne Python project mein apni khud ki error/exception bana sakta hai—
+jo teri situation ya business logic ko clearly represent kare.
+Bas Python ki Exception class ko inherit kar ke ek nayi class banani hoti hai.
+Jab built-in Python errors (jaise ValueError, FileNotFoundError vs) teri specific error ko clearly explain nahi karte 
+jaise MLOps ya data pipeline mein (data format galat hai ya model training input corrupt hai), 
+toh tu apni exception raise kar sakta hai.
+Custom exception = apni specific galtiyon/error cases ko clearly handle aur explain karne ka tareeka.
+
+
+
+Q. sys module and CustomException handling?
+
+ans: sys module - Python ka built-in module hai jo interpreter aur system se jude hua kaam karta hai.
+Iska ek important use hota hai program exit ya error handling ke context mein — 
+jaise sys.exit() se program graceful exit karwana, ya sys.exc_info() se current exception ki detail lena.
+
+CustomException tera apna banaya hua error class hota hai, jo custom error conditions ko represent karta hai.
+Tu ise raise karta hai jab koi specific problem aaye, aur try-except mein catch karta hai.
+
+Ab Jab tu koi CustomException raise karta hai, aur tu chahta hai ki is exception ke baare mein detailed info 
+leke apni script ko handle ya exit kare, to sys module use hota hai. for eg:
+
+              def error_message_detail(error,error_detail:sys):
+                    _,_,exc_tb=error_detail.exc_info()
+
+Overall CustomException se hum apni specific errors define kar lete hain and sys.exc_info() se un exceptions ke 
+baare mein low-level info le sakte hai, ya sys.exit() program ko exit kar sakte hai jab error critical ho.
+
+Ye dono i.e. customexception & sys milke robust error handling aur graceful termination provide karte hain, 
+jo especially MLOps pipelines mein important hota hai.
+
+
+
+Q. 
