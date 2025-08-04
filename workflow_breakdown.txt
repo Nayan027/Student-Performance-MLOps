@@ -1,0 +1,271 @@
+🔁 STEP 1: config.yaml — Configuration File (source of truth)
+
+This file & its likewise (schema.yaml) defines all the paths and parameters your pipeline needs.
+
+artifacts_root: Master folder jismein sab kuch store hoga
+
+data_ingestion:
+    root_dir: Isme ingestion outputs aayenge
+
+    source_URL: Data kahaan se download karna hai
+
+    local_data_file: Zip file download hone ke baad yahaan save hogi
+
+    unzip_dir: Isi folder mein file unzip hogi.
+
+
+
+
+
+
+🔁 STEP 2: constants.py — Centralized Config Path References
+
+CONFIG_FILE_PATH = Path("config/config.yaml")
+PARAMS_FILE_PATH = Path("params.yaml")
+SCHEMA_FILE_PATH = Path("schema.yaml")
+
+Yeh file bas sab important YAML paths store karti hai inn variables mein taaki har jagah 
+hardcoded string na likhni pade. Yeh code DRY (Don't Repeat Yourself) principle follow karta hai.
+
+Yeh variable bridge ban gaya code aur yaml ke beech. Ab tu kahin bhi config ki values chahiye — bas import kar aur read_yaml() se load kar.
+
+Jaise CONFIG_FILE_PATH ko baad mein ConfigurationManager mein use karoge
+Kal ko agar config file configs/main_config.yaml mein shift ho jaaye, to bas yeh ek jagah change karo.
+
+
+
+
+
+
+🔁 STEP 3: entity/config_entity.py — Typed Config Blueprint
+---------------------------
+@dataclass(frozen=True)
+class DataIngestionConfig:
+    root_dir: Path
+    source_URL: str
+    local_data_file: Path
+    unzip_dir: Path
+---------------------------
+yeh class koi logic nahi karti, sirf data hold karti hai. Kya hai @dataclass ka kaam?
+Python ko bolta hai:
+
+"Tu mujhe constructor, repr, eq, etc. ka code likhne ki tension mat de — mujhe sirf variables chahiye"
+
+Yeh neeche wala code likhne ki zarurat nahi:
+-----------------------------------------------
+def __init__(self, root_dir, source_URL, ...):
+    self.root_dir = root_dir                                   Python khud likh deta hai behind-the-scenes.
+    ...
+-----------------------------------------------
+
+Yeh class ek type-safe config object hai for data_ingestion.
+Jab tu config YAML se data uthata hai, to usse ek structured object banata hai using this class.
+
+frozen=True → Iska matlab config object banne ke baad immutable hai (safe and predictable).
+frozen=True ka kya kaam hai?
+⚠️ Yeh config ek baar ban gaya — ab isme kuch bhi modify nahi ho sakta.
+
+NOTE: Ye 4 values config.yaml se aayengi. kab aayegi? abhi kyu nahi?
+
+QUESTION: "Humne DataIngestionConfig ke attributes ko abhi fill kyu nahi kiya?"
+
+Is class ka kaam sirf structure batana hai — values baad mein fill hongi jab config.yaml se data aayega.
+⚠️ Yeh sirf empty blueprint hai — jaise ek form bana diya ho without bharna.
+Jab ***ConfigurationManager.get_data_ingestion_config()*** call hota hai:
+
+Tab tu us blueprint mein real values inject karta hai jo config.yaml se aayi hain.
+
+
+
+
+
+
+🔁 STEP 4: configuration.py — Load YAML → Create config object
+configuration.py step pe — ye poori pipeline ka setup manager hai. Iska kaam hai:
+config.yaml ko read karna, params.yaml aur schema.yaml bhi agar ho to load karna
+Un configs ke basis pe config objects banana (like DataIngestionConfig) and
+Required folders banana.
+
+------------------------------------------------------------
+class ConfigurationManager:
+    def __init__(
+        self,
+        config_filepath = CONFIG_FILE_PATH,
+        params_filepath = PARAMS_FILE_PATH,
+        schema_filepath = SCHEMA_FILE_PATH
+    ):
+-------------------------------------------------------------
+
+🔹 Constructor me kya ho raha hai?
+Teen files ko load karne ke liye paths diye ja rahe hain 3 inputs k form m — jo constants.py se import kiye gaye hain
+“Constructor mein hum 3 inputs dete hain jo ki 3 yaml file ke filepath hain, 
+fir unse 3 attributes bante hain jo in yaml files ko read karte hain”
+
+🔹 Yeh 3 arguments default hai:
+Agar tu custom file dena chahe to de sakta hai
+Warna yeh default paths constants.py se aa rahe hain
+
+-------------------------------------------------------------
+-------------------------------------------------------------
+self.config = read_yaml(config_filepath)
+self.params = read_yaml(params_filepath)
+self.schema = read_yaml(schema_filepath)
+-------------------------------------------------------------
+
+🔹 Fir yeh teen YAML files read ho rahi hain:
+YAML files ko Python dicts me convert kar rahi hain.
+Ye teeno ab Python dicts ban chuki hain, aur object ke attributes ban gaye:
+self.config
+self.params
+self.schema
+
+✅ Matlab Tu ab easily access kar sakta hai:
+anything jo config.yaml mein kisi stage pr store kra ho jaise data_ingestion: se source_URL using
+
+self.config.data_ingestion.source_URL (or)
+self.config.data_ingestion.root_dir
+
+Thus, in class attributes mein complete info hoti hai either config ki, params ki or schema ki.
+
+-------------------------------------------------------------
+-------------------------------------------------------------
+
+create_directories([self.config.artifacts_root])
+
+-------------------------------------------------------------
+🔹 Yeh kya kar raha hai?
+config.yaml me jo artifacts_root: artifacts diya hai, us folder ko create kar raha hai agar exist nahi karta.
+Ye function artifacts/ folder banata hai agar nahi bana ho
+Pipeline ke har step ka output — iss artifacts/ ke andar jaata hai.
+Soch le ye ek central storage hai for your project’s generated assets.
+-------------------------------------------------------------
+-------------------------------------------------------------
+
+def get_data_ingestion_config(self) -> DataIngestionConfig:
+        config = self.config.data_ingestion
+
+        create_directories([config.root_dir])
+
+        data_ingestion_config = DataIngestionConfig(
+            root_dir=config.root_dir,
+            source_URL=config.source_URL,
+            local_data_file=config.local_data_file,
+            unzip_dir=config.unzip_dir 
+        )
+
+        return data_ingestion_config
+----------------------------------------------------------------
+Ye method data_ingestion block ke config values uthata hai *config.yaml* se, aur 
+ek DataIngestionConfig object return karta hai.
+----------------------------------------------------------------
+config = self.config.data_ingestion       #code
+
+self.config → poora config.yaml ka dict
+
+self.config.data_ingestion → data_ingestion block ka data uthaya
+
+Ab iss config variable ke paas ye dict hai jo yaml file m store ki thi:
+{
+  "root_dir": "artifacts/data_ingestion",
+  "source_URL": "...github url...",
+  "local_data_file": "artifacts/data_ingestion/data.zip",
+  "unzip_dir": "artifacts/data_ingestion"
+}
+
+-----------------------------------------------------------------
+create_directories([config.root_dir])            #code
+
+Ye artifacts/data_ingestion/ folder banata hai
+⚠️ Isse pehle humne artifacts/ banaya tha → ab uska child ban gaya.
+Ab tu is folder me csv file download, unzip wagaira karwa sakta hai
+
+------------------------------------------------------------------
+data_ingestion_config = DataIngestionConfig(
+    root_dir=config.root_dir,
+    source_URL=config.source_URL,
+    local_data_file=config.local_data_file,
+    unzip_dir=config.unzip_dir                              #codes
+)
+
+Yeh DataIngestionConfig class ka object ban raha hai (jo tune entity/ me banaya tha @dataclass use krke)
+Ab dekh kaise Sab values config.yaml se uthai gayi hain since iss config variable ke paas wo dictionary hai
+which is accessible using *.key* which is only possible due to use of ConfigBox jo humne utils mein use kra hai.
+
+Yeh config object *data_ingestion_config* return hota hai — jise DataIngestion class use karegi for actual downloading & extraction.
+
+                                         summary of src/config/configuration
+                                         -----------------------------------
+
+Tere get_data_ingestion_config() function mein:
+✅ 1. Koi additional input nahi liya
+Sirf self use kiya → jo ki constructor ke through already 3 YAML files ka data load kar chuka hai.
+
+✅ 2. YAML file se config uthaya: config = self.config.data_ingestion
+
+self.config already config.yaml ka data hold kar raha tha.
+Humne usme se data_ingestion block ko extract kiya.
+
+✅ 3. Directory banayi jo YAML me likhi thi: create_directories([config.root_dir])
+
+YAML me likha tha: "root_dir": "artifacts/data_ingestion"
+Ab us path pe directory ban gayi.
+
+✅ 4. Entity class (DataIngestionConfig) wale ka ek object banaya
+Yeh object banane ka purpose hai: 👇
+Future steps me ye config values easily accessible ho jaise:
+
+config.root_dir
+config.source_URL
+
+✅ 5. Object return kar diya
+Ab jahan bhi data ingestion karni hai (download, extract), wahan bas: config = config_manager.get_data_ingestion_config()
+aur kaam shuru.
+
+
+
+
+
+
+🔁 STEP 5: data_ingestion.py — Component Logic
+
+class DataIngestion:
+    def __init__(self, config: DataIngestionConfig):
+        self.config = config
+
+📌 Yeh constructor kya kar raha hai:
+🔹 1. Ek Input le raha hai ek config object:      config: DataIngestionConfig
+
+Ye DataIngestionConfig ek class hai entity layer se (jo tu pehle dekh chuka hai).
+
+Ye class banaayi gayi thi YAML file ke data_ingestion section ko parse karne ke liye. Isme 3 attributes hain:
+source_URL
+local_data_file
+unzip_dir
+
+🔹 2. Us config object ko store kar raha hai self.config me:
+Ab iss class ke baaki methods (download_file, extract_zip_file) bina baar-baar config pass kare 
+self.config.xyz use kar sakte hain. Reusability badh jaati hai.
+
+Thus, Constructor ek centralized setup banata hai — jahan pe ek baar config pass karo, aur 
+har method ko usi ka access mil jaata hai. Isse code modular aur clean hota hai.
+
+yaad kar -- Entity layer mein
+--------------------------------------
+config = DataIngestionConfig(                👆 Yeh config ek object hai class DataIngestionConfig ka — jo 
+    source_URL = "...",                         YAML file ka ek structured version ka access deta hai.
+    local_data_file = "...",
+    unzip_dir = "..."
+)
+--------------------------------------
+Components file (data_ingestion) mein:
+Ab DataIngestion class ke constructor me:  class DataIngestion:
+-----------------------------------------       def __init__(self, config: DataIngestionConfig):
+                                                    self.config = config
+
+🔁 Yaha pe wahi config object jo entity layer me bana tha, usko input me diya ja raha hai.
+✅ Aur self.config me store kar diya gaya hai — taki poori class ke andar kahin bhi use ho sake meaning
+ab baaki ke method (e.g. download_file) bina extra input ke use kar sakte hain.
+
+
+
+And ab hrr stage ke liye same treeka use hoga i.e. same workflow and same logic.
