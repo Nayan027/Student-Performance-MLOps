@@ -1,4 +1,5 @@
 import os
+import sys
 import yaml 
 import json
 import json
@@ -9,6 +10,7 @@ from pathlib import Path
 from typing import Any
 from src.logger import logging
 from src.exception import MyException
+from urllib import request
 
 @ensure_annotations
 def read_yaml(path_to_yaml: Path) -> ConfigBox:
@@ -78,3 +80,15 @@ def load_binary(path:Path) -> Any:
     logging.info(f"binary file loaded from: {path}")
 
     return data
+
+
+
+def download_csv_file(source_url: str, local_file: str):
+    if not os.path.exists(local_file):
+        filename, headers = request.urlretrieve(
+            url=source_url,
+            filename=local_file
+        )
+        logger.info(f"{filename} downloaded! with headers: \n{headers}")
+    else:
+        logger.info(f"File already exists. Size: {get_size(Path(local_file))}")
